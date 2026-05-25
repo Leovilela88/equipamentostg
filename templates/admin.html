@@ -1,226 +1,97 @@
 {% extends "base.html" %}
-{% block title %}Admin · Equipamentos Terra da Gente{% endblock %}
+{% block title %}Catálogo · Equipamentos Terra da Gente{% endblock %}
 
 {% block content %}
+<div id="catalogo"></div>
+
 <div class="d-flex align-items-center gap-2 mb-3">
   <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i>
   </a>
   <h5 class="mb-0 fw-bold flex-fill">
-    <i class="bi bi-gear me-2"></i>Configurações
+    <i class="bi bi-collection me-2"></i>Catálogo de equipamentos
   </h5>
 </div>
 
-<!-- Abas -->
-<ul class="nav nav-tabs mb-3" id="adminTabs">
-  <li class="nav-item">
-    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-catalogo" type="button">
-      <i class="bi bi-collection me-1"></i>Catálogo de equipamentos
-    </button>
-  </li>
-  <li class="nav-item">
-    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-r2" type="button">
-      <i class="bi bi-cloud me-1"></i>Armazenamento (R2)
-    </button>
-  </li>
-</ul>
-
-<div class="tab-content">
-
-  <!-- ───── ABA CATÁLOGO ───── -->
-  <div class="tab-pane fade show active" id="tab-catalogo">
-    <div id="catalogo"></div>
-
-    <!-- Formulário de novo equipamento -->
-    <div class="card mb-3">
-      <div class="card-header py-2 fw-semibold">
-        <i class="bi bi-plus-circle me-2"></i>Adicionar equipamento ao catálogo
+<!-- Formulário de novo equipamento -->
+<div class="card mb-3">
+  <div class="card-header py-2 fw-semibold">
+    <i class="bi bi-plus-circle me-2"></i>Adicionar equipamento
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('catalogo_novo') }}">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold mb-1">Categoria <span class="text-danger">*</span></label>
+          <select name="categoria" class="form-select" required>
+            <option value="">Escolha…</option>
+            {% for c in categorias %}
+              <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold mb-1">Nome <span class="text-danger">*</span></label>
+          <input type="text" name="nome" class="form-control"
+                 placeholder="Ex: Sony PXW-Z90" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold mb-1">Descrição</label>
+          <input type="text" name="descricao" class="form-control"
+                 placeholder="Ex: nº de série, observação...">
+        </div>
+        <div class="col-md-1">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-plus-lg"></i>
+          </button>
+        </div>
       </div>
-      <div class="card-body">
-        <form method="POST" action="{{ url_for('catalogo_novo') }}">
-          <div class="row g-2 align-items-end">
-            <div class="col-md-3">
-              <label class="form-label small fw-semibold mb-1">Categoria <span class="text-danger">*</span></label>
-              <select name="categoria" class="form-select" required>
-                <option value="">Escolha…</option>
-                {% for c in categorias %}
-                  <option value="{{ c }}">{{ c }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label small fw-semibold mb-1">Nome <span class="text-danger">*</span></label>
-              <input type="text" name="nome" class="form-control"
-                     placeholder="Ex: Sony PXW-Z90" required>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label small fw-semibold mb-1">Descrição</label>
-              <input type="text" name="descricao" class="form-control"
-                     placeholder="Ex: nº de série, observação...">
-            </div>
-            <div class="col-md-1">
-              <button type="submit" class="btn btn-primary w-100">
-                <i class="bi bi-plus-lg"></i>
-              </button>
-            </div>
+    </form>
+  </div>
+</div>
+
+<!-- Lista do catálogo -->
+<div class="card">
+  <div class="card-header py-2 fw-semibold d-flex justify-content-between">
+    <span><i class="bi bi-list me-2"></i>Equipamentos cadastrados</span>
+    <span class="text-muted small">
+      {% set total = catalogo.values()|map('length')|sum %}
+      {{ total }} {{ 'item' if total == 1 else 'itens' }}
+    </span>
+  </div>
+  <div class="card-body">
+
+    {% if catalogo %}
+      {% for categoria, itens in catalogo.items() %}
+        <div class="mb-4">
+          <div class="cat-titulo mb-2" style="border-radius:6px; border-bottom:1px solid var(--borda);">
+            <i class="bi bi-tag-fill me-1"></i>{{ categoria }}
+            <span class="text-muted small">({{ itens|length }})</span>
           </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Lista do catálogo -->
-    <div class="card">
-      <div class="card-header py-2 fw-semibold d-flex justify-content-between">
-        <span><i class="bi bi-list me-2"></i>Equipamentos cadastrados</span>
-        <span class="text-muted small">
-          {% set total = catalogo.values()|map('length')|sum %}
-          {{ total }} {{ 'item' if total == 1 else 'itens' }}
-        </span>
-      </div>
-      <div class="card-body">
-
-        {% if catalogo %}
-          {% for categoria, itens in catalogo.items() %}
-            <div class="mb-4">
-              <div class="cat-titulo mb-2" style="border-radius:6px; border-bottom:1px solid var(--borda);">
-                <i class="bi bi-tag-fill me-1"></i>{{ categoria }}
-                <span class="text-muted small">({{ itens|length }})</span>
-              </div>
-              {% for item in itens %}
-                <div class="cat-row">
-                  <div class="nome">{{ item.nome }}</div>
-                  {% if item.descricao %}
-                    <div class="desc d-none d-md-block">{{ item.descricao }}</div>
-                  {% endif %}
-                  <form method="POST" action="{{ url_for('catalogo_excluir', id=item.id) }}"
-                        onsubmit="return confirm('Remover {{ item.nome }} do catálogo?')">
-                    <button class="btn btn-sm btn-outline-danger">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </form>
-                </div>
-              {% endfor %}
+          {% for item in itens %}
+            <div class="cat-row">
+              <div class="nome">{{ item.nome }}</div>
+              {% if item.descricao %}
+                <div class="desc d-none d-md-block">{{ item.descricao }}</div>
+              {% endif %}
+              <form method="POST" action="{{ url_for('catalogo_excluir', id=item.id) }}"
+                    onsubmit="return confirm('Remover {{ item.nome }} do catálogo?')">
+                <button class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
             </div>
           {% endfor %}
-        {% else %}
-          <p class="text-muted text-center my-4 mb-0">
-            <i class="bi bi-inbox" style="font-size:2rem;"></i><br>
-            Nenhum equipamento cadastrado ainda.<br>
-            Use o formulário acima para adicionar o primeiro.
-          </p>
-        {% endif %}
-
-      </div>
-    </div>
-  </div>
-
-  <!-- ───── ABA R2 ───── -->
-  <div class="tab-pane fade" id="tab-r2">
-
-    <div class="card mb-3">
-      <div class="card-header py-2 fw-semibold d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-cloud me-2"></i>Cloudflare R2 (armazenamento de fotos)</span>
-        {% if status == 'configurado' %}
-          <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Configurado</span>
-        {% else %}
-          <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Não configurado</span>
-        {% endif %}
-      </div>
-      <div class="card-body">
-
-        {% if env_override %}
-        <div class="alert alert-info small mb-3">
-          <i class="bi bi-info-circle me-1"></i>
-          Variáveis de ambiente <code>R2_*</code> detectadas. Elas têm prioridade sobre os valores abaixo.
         </div>
-        {% endif %}
+      {% endfor %}
+    {% else %}
+      <p class="text-muted text-center my-4 mb-0">
+        <i class="bi bi-inbox" style="font-size:2rem;"></i><br>
+        Nenhum equipamento cadastrado ainda.<br>
+        Use o formulário acima para adicionar o primeiro.
+      </p>
+    {% endif %}
 
-        <form method="POST" action="{{ url_for('admin_salvar') }}">
-          <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label fw-semibold small">Account ID</label>
-              <input type="text" name="account_id" class="form-control" value="{{ cfg.account_id }}">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold small">Access Key ID</label>
-              <input type="text" name="access_key" class="form-control" value="{{ cfg.access_key }}" autocomplete="off">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold small">Secret Access Key</label>
-              <input type="password" name="secret_key" class="form-control" value="{{ cfg.secret_key }}" autocomplete="off">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold small">Nome do Bucket</label>
-              <input type="text" name="bucket" class="form-control" value="{{ cfg.bucket }}">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold small">Pasta (prefixo)</label>
-              <input type="text" name="prefixo" class="form-control" value="{{ cfg.prefixo }}">
-            </div>
-            <div class="col-12">
-              <label class="form-label fw-semibold small">URL pública</label>
-              <input type="url" name="public_url" class="form-control" value="{{ cfg.public_url }}">
-            </div>
-          </div>
-          <div class="d-flex gap-2 mt-4">
-            <button type="submit" class="btn btn-primary">
-              <i class="bi bi-save me-1"></i>Salvar
-            </button>
-            <button type="button" class="btn btn-outline-success" id="btnTestar">
-              <i class="bi bi-plug me-1"></i>Testar conexão
-            </button>
-          </div>
-        </form>
-
-        <div id="resultadoTeste" class="mt-3"></div>
-      </div>
-    </div>
   </div>
-
 </div>
-{% endblock %}
-
-{% block scripts %}
-<style>
-  .nav-tabs { border-bottom-color: var(--borda); }
-  .nav-tabs .nav-link {
-    color: var(--txt-suave);
-    background: transparent;
-    border-color: transparent;
-    font-weight: 600;
-  }
-  .nav-tabs .nav-link:hover { color: var(--verde-claro); border-color: transparent; }
-  .nav-tabs .nav-link.active {
-    color: var(--verde-claro);
-    background: var(--bg-card);
-    border-color: var(--borda) var(--borda) var(--bg-card);
-  }
-</style>
-<script>
-// Abrir aba catálogo via hash #catalogo
-if (location.hash === '#catalogo') {
-  new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-catalogo"]')).show();
-}
-
-document.getElementById('btnTestar')?.addEventListener('click', async () => {
-  const out = document.getElementById('resultadoTeste');
-  out.innerHTML = '<div class="alert alert-secondary"><i class="bi bi-hourglass-split me-1"></i>Testando…</div>';
-  try {
-    const res = await fetch('{{ url_for("admin_testar") }}', { method: 'POST' });
-    const data = await res.json();
-    if (data.ok) {
-      out.innerHTML = `<div class="alert alert-success">
-        <i class="bi bi-check-circle me-1"></i><strong>Conexão OK!</strong><br>
-        <small>Bucket: <code>${data.bucket}</code> · Pasta: <code>${data.pasta}/</code></small>
-      </div>`;
-    } else {
-      out.innerHTML = `<div class="alert alert-danger">
-        <i class="bi bi-x-circle me-1"></i><strong>Erro:</strong> ${data.erro}
-      </div>`;
-    }
-  } catch (e) {
-    out.innerHTML = `<div class="alert alert-danger">Erro: ${e.message}</div>`;
-  }
-});
-</script>
 {% endblock %}

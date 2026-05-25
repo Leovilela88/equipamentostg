@@ -393,47 +393,10 @@ def excluir(id):
 
 @app.route("/admin")
 def admin():
-    cfg = get_r2_config()
-    client, *_ = get_r2()
-    status = "configurado" if client else "não configurado"
     catalogo = listar_catalogo()
     return render_template("admin.html",
-                           cfg=cfg,
-                           status=status,
-                           env_override=bool(os.environ.get("R2_ACCOUNT_ID")),
                            categorias=CATEGORIAS,
                            catalogo=catalogo)
-
-
-@app.route("/admin/salvar", methods=["POST"])
-def admin_salvar():
-    cfg = carregar_config()
-    cfg["r2_account_id"] = request.form.get("account_id", "").strip()
-    cfg["r2_access_key"] = request.form.get("access_key", "").strip()
-    cfg["r2_secret_key"] = request.form.get("secret_key", "").strip()
-    cfg["r2_bucket"]     = request.form.get("bucket", "").strip()
-    cfg["r2_public_url"] = request.form.get("public_url", "").strip().rstrip("/")
-    cfg["r2_prefixo"]    = (request.form.get("prefixo", "").strip() or "equipamentos").strip("/")
-    salvar_config(cfg)
-    flash("Configurações do R2 salvas.", "ok")
-    return redirect(url_for("admin"))
-
-
-@app.route("/admin/testar", methods=["POST"])
-def admin_testar():
-    client, bucket, public_url, pasta = get_r2()
-    if not client:
-        return jsonify({"ok": False, "erro": "Configuração incompleta ou boto3 ausente."}), 400
-    try:
-        client.head_bucket(Bucket=bucket)
-        test_key = f"{pasta.strip('/')}/_teste_{uuid.uuid4().hex[:8]}.txt"
-        client.put_object(Bucket=bucket, Key=test_key,
-                          Body=b"teste de conexao equipav",
-                          ContentType="text/plain")
-        client.delete_object(Bucket=bucket, Key=test_key)
-        return jsonify({"ok": True, "bucket": bucket, "public_url": public_url, "pasta": pasta})
-    except Exception as e:
-        return jsonify({"ok": False, "erro": str(e)}), 500
 
 
 # ── Catálogo de equipamentos ───────────────────────────────────────────────────
