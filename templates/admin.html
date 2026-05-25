@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Admin · EquipAV{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h5 class="mb-0 fw-bold flex-fill">
+    <i class="bi bi-gear me-2"></i>Configurações
+  </h5>
+  <form method="POST" action="{{ url_for('admin_logout') }}">
+    <button class="btn btn-sm btn-outline-danger">
+      <i class="bi bi-box-arrow-right me-1"></i>Sair
+    </button>
+  </form>
+</div>
+
+<div class="row justify-content-center">
+<div class="col-12 col-lg-9">
+
+  <div class="card mb-3">
+    <div class="card-header py-2 fw-semibold d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-cloud me-2"></i>Cloudflare R2 (armazenamento de fotos)</span>
+      {% if status == 'configurado' %}
+        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Configurado</span>
+      {% else %}
+        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Não configurado</span>
+      {% endif %}
+    </div>
+    <div class="card-body">
+
+      {% if env_override %}
+      <div class="alert alert-info small mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        Variáveis de ambiente <code>R2_*</code> detectadas. Elas têm prioridade sobre os valores abaixo.
+      </div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('admin_salvar') }}">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold small">Account ID</label>
+            <input type="text" name="account_id" class="form-control"
+                   value="{{ cfg.account_id }}" placeholder="ex: a1b2c3d4e5...">
+            <div class="form-text">Encontrado em Cloudflare → R2 → Overview</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Access Key ID</label>
+            <input type="text" name="access_key" class="form-control"
+                   value="{{ cfg.access_key }}" autocomplete="off">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Secret Access Key</label>
+            <input type="password" name="secret_key" class="form-control"
+                   value="{{ cfg.secret_key }}" autocomplete="off">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Nome do Bucket</label>
+            <input type="text" name="bucket" class="form-control"
+                   value="{{ cfg.bucket }}" placeholder="equipamentos-av">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Pasta (prefixo no bucket)</label>
+            <input type="text" name="prefixo" class="form-control"
+                   value="{{ cfg.prefixo }}" placeholder="equipamentos">
+            <div class="form-text">Útil para organizar dentro do bucket</div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold small">URL pública (R2.dev ou domínio custom)</label>
+            <input type="url" name="public_url" class="form-control"
+                   value="{{ cfg.public_url }}"
+                   placeholder="https://pub-xxxxx.r2.dev">
+            <div class="form-text">URL onde os arquivos ficam acessíveis publicamente</div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save me-1"></i>Salvar
+          </button>
+          <button type="button" class="btn btn-outline-success" id="btnTestar">
+            <i class="bi bi-plug me-1"></i>Testar conexão
+          </button>
+        </div>
+      </form>
+
+      <div id="resultadoTeste" class="mt-3"></div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header py-2 fw-semibold">
+      <i class="bi bi-info-circle me-2"></i>Como configurar
+    </div>
+    <div class="card-body small">
+      <ol class="mb-0">
+        <li class="mb-2">Acesse <a href="https://dash.cloudflare.com" target="_blank">dash.cloudflare.com</a> → <strong>R2</strong></li>
+        <li class="mb-2">Crie um bucket exclusivo (ex: <code>equipamentos-av</code>)</li>
+        <li class="mb-2">Em <strong>Manage R2 API Tokens</strong>, gere um token com permissão <em>Object Read &amp; Write</em> para este bucket</li>
+        <li class="mb-2">Em <strong>Settings → Public access</strong>, habilite <em>R2.dev subdomain</em> (ou conecte um domínio custom) — copie a URL pública</li>
+        <li>Cole os 5 campos acima, salve e clique em <strong>Testar conexão</strong></li>
+      </ol>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('btnTestar').addEventListener('click', async () => {
+  const out = document.getElementById('resultadoTeste');
+  out.innerHTML = '<div class="alert alert-secondary"><i class="bi bi-hourglass-split me-1"></i>Testando conexão...</div>';
+
+  try {
+    const res = await fetch('{{ url_for("admin_testar") }}', { method: 'POST' });
+    const data = await res.json();
+
+    if (data.ok) {
+      out.innerHTML = `
+        <div class="alert alert-success">
+          <i class="bi bi-check-circle me-1"></i><strong>Conexão OK!</strong><br>
+          <small>
+            Bucket: <code>${data.bucket}</code><br>
+            Pasta: <code>${data.pasta}/</code><br>
+            URL pública: <a href="${data.public_url}" target="_blank">${data.public_url}</a>
+          </small>
+        </div>`;
+    } else {
+      out.innerHTML = `
+        <div class="alert alert-danger">
+          <i class="bi bi-x-circle me-1"></i><strong>Erro:</strong> ${data.erro}
+        </div>`;
+    }
+  } catch (e) {
+    out.innerHTML = `<div class="alert alert-danger">Erro na requisição: ${e.message}</div>`;
+  }
+});
+</script>
+{% endblock %}

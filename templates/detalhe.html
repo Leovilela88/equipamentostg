@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}{{ r.pauta }} · EquipAV{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+  <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h5 class="mb-0 fw-bold flex-fill">{{ r.pauta }}</h5>
+  {% if r.status == 'Em campo' %}
+    <span class="badge badge-campo fs-6 px-3 py-2">
+      <i class="bi bi-broadcast me-1"></i>Em campo
+    </span>
+  {% else %}
+    <span class="badge badge-devolvido fs-6 px-3 py-2">
+      <i class="bi bi-check2-circle me-1"></i>Devolvido
+    </span>
+  {% endif %}
+</div>
+
+<div class="row g-3">
+
+  <!-- Coluna principal -->
+  <div class="col-12 col-lg-7">
+
+    <!-- Info da pauta -->
+    <div class="card mb-3">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-file-text me-2"></i>Informações da pauta
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 col-md-4 text-muted">Pauta</dt>
+          <dd class="col-7 col-md-8 fw-semibold">{{ r.pauta }}</dd>
+
+          <dt class="col-5 col-md-4 text-muted">Período</dt>
+          <dd class="col-7 col-md-8">{{ formatar_periodo(r.data_inicio, r.data_fim) }}</dd>
+
+          {% if r.destino %}
+          <dt class="col-5 col-md-4 text-muted">Destino</dt>
+          <dd class="col-7 col-md-8">{{ r.destino }}</dd>
+          {% endif %}
+
+          <dt class="col-5 col-md-4 text-muted">Cinegrafista</dt>
+          <dd class="col-7 col-md-8">{{ r.cinegrafista }}</dd>
+
+          {% if r.reporter %}
+          <dt class="col-5 col-md-4 text-muted">Repórter</dt>
+          <dd class="col-7 col-md-8">{{ r.reporter }}</dd>
+          {% endif %}
+
+          <dt class="col-5 col-md-4 text-muted">Registrado em</dt>
+          <dd class="col-7 col-md-8">{{ r.criado_em }}</dd>
+
+          {% if r.devolvido_em %}
+          <dt class="col-5 col-md-4 text-muted">Devolvido em</dt>
+          <dd class="col-7 col-md-8">{{ r.devolvido_em }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+
+    <!-- Equipamentos -->
+    {% if r.equipamentos %}
+    <div class="card mb-3">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-camera-video me-2"></i>Equipamentos
+      </div>
+      <div class="card-body">
+        <ul class="mb-0 ps-3">
+          {% for item in r.equipamentos.split('\n') %}
+            {% if item.strip() %}
+            <li class="small mb-1">{{ item.strip() }}</li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Observações -->
+    {% if r.observacoes %}
+    <div class="card mb-3">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-chat-left-text me-2"></i>Observações
+      </div>
+      <div class="card-body small">{{ r.observacoes }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Ações -->
+    <div class="card mb-3">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-gear me-2"></i>Ações
+      </div>
+      <div class="card-body d-flex flex-wrap gap-2">
+
+        {% if r.status == 'Em campo' %}
+        <!-- Botão devolver (abre modal) -->
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalDevolver">
+          <i class="bi bi-check2-circle me-1"></i>Marcar como devolvido
+        </button>
+        {% else %}
+        <!-- Reabrir -->
+        <form method="POST" action="{{ url_for('reabrir', id=r.id) }}"
+              onsubmit="return confirm('Reabrir este registro?')">
+          <button type="submit" class="btn btn-outline-warning">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Reabrir
+          </button>
+        </form>
+        {% endif %}
+
+        <!-- Excluir -->
+        <form method="POST" action="{{ url_for('excluir', id=r.id) }}"
+              onsubmit="return confirm('Excluir permanentemente este registro?')">
+          <button type="submit" class="btn btn-outline-danger">
+            <i class="bi bi-trash me-1"></i>Excluir
+          </button>
+        </form>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Coluna fotos -->
+  <div class="col-12 col-lg-5">
+
+    <!-- Foto de Saída -->
+    <div class="card mb-3">
+      <div class="card-header py-2 fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-box-arrow-up-right me-2 text-warning"></i>Foto de saída</span>
+      </div>
+      <div class="card-body">
+        {% if r.foto_saida %}
+          <img src="{{ r.foto_saida }}" class="foto-thumb mb-3" alt="Foto de saída">
+        {% else %}
+          <div class="foto-placeholder mb-3">
+            <i class="bi bi-camera"></i>
+            <span class="small">Sem foto de saída</span>
+          </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('foto_saida', id=r.id) }}" enctype="multipart/form-data">
+          <label class="form-label small fw-semibold mb-1">
+            {{ 'Substituir foto' if r.foto_saida else 'Adicionar foto' }}
+          </label>
+          <input type="file" name="foto" class="form-control form-control-sm mb-2"
+                 accept="image/*" capture="environment"
+                 onchange="previewFoto(this,'pvSaida')">
+          <div id="pvSaida"></div>
+          <button type="submit" class="btn btn-sm btn-outline-primary mt-1">
+            <i class="bi bi-upload me-1"></i>Enviar
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Foto de Devolução -->
+    <div class="card mb-3">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-box-arrow-in-down-left me-2 text-success"></i>Foto de devolução
+      </div>
+      <div class="card-body">
+        {% if r.foto_devolucao %}
+          <img src="{{ r.foto_devolucao }}" class="foto-thumb" alt="Foto de devolução">
+          <p class="small text-muted mt-2 mb-0">
+            <i class="bi bi-check2-circle me-1 text-success"></i>
+            Devolvido em {{ r.devolvido_em }}
+          </p>
+        {% else %}
+          <div class="foto-placeholder">
+            <i class="bi bi-camera"></i>
+            <span class="small">Foto será enviada na devolução</span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal Devolução -->
+<div class="modal fade" id="modalDevolver" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('devolver', id=r.id) }}" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-check2-circle me-2"></i>Confirmar devolução</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-3">
+            Equipamentos da pauta <strong>{{ r.pauta }}</strong> serão marcados como devolvidos.
+          </p>
+
+          <label class="form-label fw-semibold">Foto de devolução</label>
+          <input type="file" name="foto_devolucao" class="form-control mb-2"
+                 accept="image/*" capture="environment"
+                 onchange="previewFoto(this,'pvDevolucao')">
+          <div id="pvDevolucao"></div>
+          <div class="form-text">Tire uma foto confirmando o estado dos equipamentos ao retornar</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-check2-circle me-1"></i>Confirmar devolução
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewFoto(input, targetId) {
+  const target = document.getElementById(targetId);
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      target.innerHTML = `<img src="${e.target.result}" class="img-fluid rounded mt-1" style="max-height:200px;object-fit:cover;">`;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}
