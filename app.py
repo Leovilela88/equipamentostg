@@ -394,9 +394,34 @@ def excluir(id):
 @app.route("/admin")
 def admin():
     catalogo = listar_catalogo()
+    with get_db() as conn:
+        registros = conn.execute(
+            "SELECT id, pauta, data_inicio, data_fim, cinegrafista, "
+            "destino, status, criado_em, devolvido_em "
+            "FROM registros ORDER BY data_inicio ASC, criado_em ASC"
+        ).fetchall()
     return render_template("admin.html",
                            categorias=CATEGORIAS,
-                           catalogo=catalogo)
+                           catalogo=catalogo,
+                           registros=registros)
+
+
+@app.route("/admin/registros/excluir-selecionados", methods=["POST"])
+def excluir_selecionados():
+    ids = request.form.getlist("ids")
+    if not ids:
+        flash("Nenhum registro selecionado.", "erro")
+        return redirect(url_for("admin") + "#registros")
+
+    with get_db() as conn:
+        qmarks = ",".join("?" * len(ids))
+        n = conn.execute(
+            f"DELETE FROM registros WHERE id IN ({qmarks})", ids
+        ).rowcount
+        conn.commit()
+
+    flash(f"{n} {'registro excluído' if n == 1 else 'registros excluídos'}.", "ok")
+    return redirect(url_for("admin") + "#registros")
 
 
 # ── Catálogo de equipamentos ───────────────────────────────────────────────────

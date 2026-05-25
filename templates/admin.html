@@ -94,4 +94,137 @@
 
   </div>
 </div>
+
+
+<!-- ───── Limpeza de registros ───── -->
+<div id="registros" class="mt-5"></div>
+
+<div class="d-flex align-items-center gap-2 mb-3">
+  <h5 class="mb-0 fw-bold flex-fill">
+    <i class="bi bi-trash3 me-2"></i>Limpeza de registros
+  </h5>
+</div>
+
+<div class="card">
+  <div class="card-header py-2 fw-semibold d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-list-check me-2"></i>Viagens registradas</span>
+    <span class="text-muted small">{{ registros|length }} {{ 'registro' if registros|length == 1 else 'registros' }}</span>
+  </div>
+  <div class="card-body">
+
+    {% if registros %}
+
+    <form method="POST" action="{{ url_for('excluir_selecionados') }}"
+          onsubmit="return confirmarExclusao(this)">
+
+      <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMarcarReg">Marcar todos</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnLimparReg">Limpar</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnDevolvidos">
+          <i class="bi bi-check2-circle me-1"></i>Só devolvidos
+        </button>
+        <div class="flex-fill"></div>
+        <span class="text-muted small me-2" id="contadorSel">0 selecionados</span>
+        <button type="submit" class="btn btn-sm btn-outline-danger" id="btnExcluir" disabled>
+          <i class="bi bi-trash me-1"></i>Excluir selecionados
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 reg-table">
+          <thead>
+            <tr>
+              <th style="width: 36px;"></th>
+              <th>Pauta</th>
+              <th class="d-none d-md-table-cell">Período</th>
+              <th class="d-none d-lg-table-cell">Cinegrafista</th>
+              <th style="width:110px;">Status</th>
+              <th class="d-none d-md-table-cell" style="width:130px;">Criado em</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in registros %}
+            <tr>
+              <td>
+                <input type="checkbox" name="ids" value="{{ r.id }}" class="form-check-input cb-reg">
+              </td>
+              <td>
+                <a href="{{ url_for('detalhe', id=r.id) }}" class="text-decoration-none">
+                  <strong>{{ r.pauta }}</strong>
+                </a>
+                {% if r.destino %}
+                  <div class="text-muted small"><i class="bi bi-geo-alt me-1"></i>{{ r.destino }}</div>
+                {% endif %}
+              </td>
+              <td class="small d-none d-md-table-cell">{{ formatar_periodo(r.data_inicio, r.data_fim) }}</td>
+              <td class="small d-none d-lg-table-cell">{{ r.cinegrafista }}</td>
+              <td>
+                {% if r.status == 'Reservado' %}
+                  <span class="badge badge-reservado small">Reserva</span>
+                {% elif r.status == 'Em campo' %}
+                  <span class="badge badge-campo small">Em campo</span>
+                {% else %}
+                  <span class="badge badge-devolvido small">Devolvido</span>
+                {% endif %}
+              </td>
+              <td class="small text-muted d-none d-md-table-cell">{{ r.criado_em[:10] if r.criado_em else '' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+
+    {% else %}
+      <p class="text-muted text-center my-4 mb-0">
+        <i class="bi bi-inbox" style="font-size:2rem;"></i><br>
+        Nenhuma viagem registrada ainda.
+      </p>
+    {% endif %}
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const cbs = () => document.querySelectorAll('.cb-reg');
+const contador = document.getElementById('contadorSel');
+const btnExcluir = document.getElementById('btnExcluir');
+
+function atualizarContador() {
+  const sel = [...cbs()].filter(c => c.checked).length;
+  if (contador) contador.textContent = sel + (sel === 1 ? ' selecionado' : ' selecionados');
+  if (btnExcluir) btnExcluir.disabled = sel === 0;
+}
+
+cbs().forEach(cb => cb.addEventListener('change', atualizarContador));
+
+document.getElementById('btnMarcarReg')?.addEventListener('click', () => {
+  cbs().forEach(c => c.checked = true);
+  atualizarContador();
+});
+document.getElementById('btnLimparReg')?.addEventListener('click', () => {
+  cbs().forEach(c => c.checked = false);
+  atualizarContador();
+});
+document.getElementById('btnDevolvidos')?.addEventListener('click', () => {
+  cbs().forEach(c => {
+    const row = c.closest('tr');
+    const badge = row.querySelector('.badge-devolvido');
+    c.checked = !!badge;
+  });
+  atualizarContador();
+});
+
+function confirmarExclusao(form) {
+  const sel = [...form.querySelectorAll('.cb-reg')].filter(c => c.checked).length;
+  if (sel === 0) {
+    alert('Selecione ao menos um registro.');
+    return false;
+  }
+  return confirm(`Excluir permanentemente ${sel} ${sel === 1 ? 'registro' : 'registros'}? Esta ação não pode ser desfeita.`);
+}
+</script>
 {% endblock %}

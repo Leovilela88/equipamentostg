@@ -325,6 +325,31 @@
     .modal-header, .modal-footer { border-color: var(--borda); }
     .btn-close { filter: invert(1) opacity(.7); }
 
+    /* Tabela de registros (admin) */
+    .reg-table { color: var(--txt-claro); }
+    .reg-table thead th {
+      background: rgba(74,222,128,.04);
+      color: var(--verde-claro);
+      border-bottom: 1px solid var(--borda);
+      font-size: .75rem;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .reg-table tbody tr { border-bottom: 1px solid var(--borda); }
+    .reg-table tbody tr:hover { background: rgba(74,222,128,.05); }
+    .reg-table td, .reg-table th { border-color: var(--borda) !important; }
+    .reg-table a { color: var(--txt-claro); }
+    .reg-table a:hover { color: var(--verde-claro); }
+    .reg-table .form-check-input {
+      background-color: rgba(255,255,255,.05);
+      border-color: var(--borda-forte);
+    }
+    .reg-table .form-check-input:checked {
+      background-color: var(--verde-mata);
+      border-color: var(--verde-claro);
+    }
+
     /* Catálogo (checkboxes agrupados) */
     .cat-grupo {
       background: rgba(255,255,255,.02);
