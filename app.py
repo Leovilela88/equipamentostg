@@ -142,9 +142,14 @@ def init_db():
                 categoria TEXT NOT NULL,
                 nome      TEXT NOT NULL,
                 descricao TEXT,
+                foto_url  TEXT,
                 criado_em TEXT DEFAULT (datetime('now','localtime'))
             )
         """)
+        # Migração: garante coluna foto_url em bancos antigos
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(catalogo)").fetchall()]
+        if "foto_url" not in cols:
+            conn.execute("ALTER TABLE catalogo ADD COLUMN foto_url TEXT")
         conn.commit()
 
 
@@ -184,26 +189,37 @@ app.jinja_env.globals["formatar_periodo"] = formatar_periodo
 @app.route("/")
 def index():
     status_filter = request.args.get("status", "todos")
-    with get_db() as conn:
-        if status_filter == "reservado":
-            rows = conn.execute(
-                "SELECT * FROM registros WHERE status='Reservado' ORDER BY data_inicio ASC, criado_em DESC"
-            ).fetchall()
-        elif status_filter == "em_campo":
-            rows = conn.execute(
-                "SELECT * FROM registros WHERE status='Em campo' ORDER BY criado_em DESC"
-            ).fetchall()
-        elif status_filter == "devolvido":
-            rows = conn.execute(
-                "SELECT * FROM registros WHERE status='Devolvido' ORDER BY devolvido_em DESC"
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT * FROM registros ORDER BY "
-                "CASE status WHEN 'Reservado' THEN 1 WHEN 'Em campo' THEN 2 ELSE 3 END, "
-                "criado_em DESC"
-            ).fetchall()
+    q = request.args.get("q", "").strip()
 
+    where, params = [], []
+    if status_filter == "reservado":
+        where.append("status='Reservado'")
+        order = "data_inicio ASC, criado_em DESC"
+    elif status_filter == "em_campo":
+        where.append("status='Em campo'")
+        order = "criado_em DESC"
+    elif status_filter == "devolvido":
+        where.append("status='Devolvido'")
+        order = "devolvido_em DESC"
+    else:
+        order = ("CASE status WHEN 'Reservado' THEN 1 WHEN 'Em campo' THEN 2 ELSE 3 END, "
+                 "criado_em DESC")
+
+    if q:
+        where.append("("
+                     "pauta LIKE ? OR cinegrafista LIKE ? "
+                     "OR COALESCE(reporter,'') LIKE ? "
+                     "OR COALESCE(destino,'')  LIKE ? "
+                     "OR COALESCE(equipamentos,'') LIKE ?)")
+        like = f"%{q}%"
+        params.extend([like] * 5)
+
+    where_sql = (" WHERE " + " AND ".join(where)) if where else ""
+
+    with get_db() as conn:
+        rows = conn.execute(
+            f"SELECT * FROM registros{where_sql} ORDER BY {order}", params
+        ).fetchall()
         totais = conn.execute("""
             SELECT
                 COUNT(*) as total,
@@ -213,7 +229,8 @@ def index():
             FROM registros
         """).fetchone()
 
-    return render_template("index.html", registros=rows, status_filter=status_filter, totais=totais)
+    return render_template("index.html", registros=rows,
+                           status_filter=status_filter, totais=totais, q=q)
 
 
 @app.route("/novo", methods=["GET", "POST"])
@@ -436,10 +453,18 @@ def catalogo_novo():
         flash("Informe categoria e nome do equipamento.", "erro")
         return redirect(url_for("admin") + "#catalogo")
 
+    foto_url = None
+    file = request.files.get("foto")
+    if file and file.filename and allowed(file.filename):
+        try:
+            foto_url = upload_foto(file, prefix="cat")
+        except Exception as e:
+            flash(f"Erro ao enviar foto: {e}", "erro")
+
     with get_db() as conn:
         conn.execute(
-            "INSERT INTO catalogo (categoria, nome, descricao) VALUES (?,?,?)",
-            (categoria, nome, descricao),
+            "INSERT INTO catalogo (categoria, nome, descricao, foto_url) VALUES (?,?,?,?)",
+            (categoria, nome, descricao, foto_url),
         )
         conn.commit()
     flash(f"Equipamento '{nome}' adicionado ao catálogo.", "ok")

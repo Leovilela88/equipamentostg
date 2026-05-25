@@ -391,7 +391,15 @@
       accent-color: var(--verde-claro);
       width: 16px; height: 16px;
     }
-    .cat-item input:checked + span { color: var(--verde-claro); font-weight: 600; }
+    .cat-item input:checked + span,
+    .cat-item input:checked ~ span { color: var(--verde-claro); font-weight: 600; }
+    .cat-item-thumb {
+      width: 28px; height: 28px;
+      border-radius: 4px;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid var(--borda);
+    }
 
     /* Card de item do catálogo no admin */
     .cat-row {
@@ -405,6 +413,18 @@
       margin-bottom: 6px;
     }
     .cat-row .nome { flex: 1; font-weight: 600; }
+    .cat-thumb {
+      width: 42px; height: 42px;
+      border-radius: 6px;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid var(--borda);
+    }
+    .cat-thumb-empty {
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,.03);
+      color: var(--txt-mudo);
+    }
     .cat-row .cat-tag {
       font-size: .7rem;
       letter-spacing: .5px;

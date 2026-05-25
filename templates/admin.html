@@ -19,7 +19,7 @@
     <i class="bi bi-plus-circle me-2"></i>Adicionar equipamento
   </div>
   <div class="card-body">
-    <form method="POST" action="{{ url_for('catalogo_novo') }}">
+    <form method="POST" action="{{ url_for('catalogo_novo') }}" enctype="multipart/form-data">
       <div class="row g-2 align-items-end">
         <div class="col-md-3">
           <label class="form-label small fw-semibold mb-1">Categoria <span class="text-danger">*</span></label>
@@ -30,15 +30,20 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label small fw-semibold mb-1">Nome <span class="text-danger">*</span></label>
           <input type="text" name="nome" class="form-control"
                  placeholder="Ex: Sony PXW-Z90" required>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label small fw-semibold mb-1">Descrição</label>
           <input type="text" name="descricao" class="form-control"
-                 placeholder="Ex: nº de série, observação...">
+                 placeholder="Ex: nº de série...">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold mb-1">Foto</label>
+          <input type="file" name="foto" class="form-control form-control-sm"
+                 accept="image/*">
         </div>
         <div class="col-md-1">
           <button type="submit" class="btn btn-primary w-100">
@@ -70,6 +75,14 @@
           </div>
           {% for item in itens %}
             <div class="cat-row">
+              {% if item.foto_url %}
+                <img src="{{ item.foto_url }}" class="cat-thumb foto-thumb"
+                     alt="{{ item.nome }}">
+              {% else %}
+                <div class="cat-thumb cat-thumb-empty">
+                  <i class="bi bi-image"></i>
+                </div>
+              {% endif %}
               <div class="nome">{{ item.nome }}</div>
               {% if item.descricao %}
                 <div class="desc d-none d-md-block">{{ item.descricao }}</div>

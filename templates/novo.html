@@ -119,6 +119,9 @@
                       <label class="cat-item">
                         <input type="checkbox" name="equipamentos_ids" value="{{ item.id }}"
                                {% if item.id|string in selecionados %}checked{% endif %}>
+                        {% if item.foto_url %}
+                          <img src="{{ item.foto_url }}" class="cat-item-thumb foto-thumb" alt="">
+                        {% endif %}
                         <span>{{ item.nome }}{% if item.descricao %} <small class="text-muted">— {{ item.descricao }}</small>{% endif %}</span>
                       </label>
                     {% endfor %}
