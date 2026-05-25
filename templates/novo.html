@@ -75,16 +75,60 @@
 
     <!-- Equipamentos -->
     <div class="card mb-3">
-      <div class="card-header py-2 fw-semibold">
-        <i class="bi bi-camera-video me-2"></i>Equipamentos
+      <div class="card-header py-2 fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-camera-video me-2"></i>Equipamentos</span>
+        <a href="{{ url_for('admin') }}#catalogo" class="small text-decoration-none" target="_blank">
+          <i class="bi bi-plus-circle me-1"></i>Cadastrar novo
+        </a>
       </div>
       <div class="card-body">
+
+        {% if catalogo %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label fw-semibold mb-0">Selecione do catálogo</label>
+              <div class="d-flex gap-1">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" id="btnMarcarTodos">Marcar todos</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" id="btnLimpar">Limpar</button>
+              </div>
+            </div>
+
+            <div class="catalogo-grupos">
+              {% for categoria, itens in catalogo.items() %}
+                <div class="cat-grupo mb-2">
+                  <div class="cat-titulo">
+                    <i class="bi bi-tag-fill me-1"></i>{{ categoria }}
+                    <span class="text-muted small">({{ itens|length }})</span>
+                  </div>
+                  <div class="cat-itens">
+                    {% for item in itens %}
+                      <label class="cat-item">
+                        <input type="checkbox" name="equipamentos_ids" value="{{ item.id }}"
+                               {% if item.id|string in selecionados %}checked{% endif %}>
+                        <span>{{ item.nome }}{% if item.descricao %} <small class="text-muted">— {{ item.descricao }}</small>{% endif %}</span>
+                      </label>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% else %}
+          <div class="alert alert-info small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Nenhum equipamento no catálogo ainda.
+            <a href="{{ url_for('admin') }}#catalogo" target="_blank" class="alert-link">Cadastre o primeiro</a>
+            para acelerar o preenchimento.
+          </div>
+        {% endif %}
+
         <div class="mb-3">
-          <label class="form-label fw-semibold">Lista de equipamentos</label>
-          <textarea name="equipamentos" class="form-control" rows="5"
-                    placeholder="Liste um por linha:&#10;Câmera Sony PXW-Z90&#10;Tripé Sachtler&#10;Microfone Sennheiser&#10;Carregador + 2 baterias&#10;Notebook">{{ form.get('equipamentos','') }}</textarea>
-          <div class="form-text">Um equipamento por linha</div>
+          <label class="form-label fw-semibold">Outros equipamentos (não cadastrados)</label>
+          <textarea name="equipamentos_outros" class="form-control" rows="3"
+                    placeholder="Um item por linha (opcional)">{{ form.get('equipamentos_outros','') }}</textarea>
+          <div class="form-text">Itens fora do catálogo — um por linha</div>
         </div>
+
         <div>
           <label class="form-label fw-semibold">Observações</label>
           <textarea name="observacoes" class="form-control" rows="3"
@@ -136,6 +180,15 @@ document.querySelector('[name=data_inicio]').addEventListener('change', function
   const fim = document.querySelector('[name=data_fim]');
   if (!fim.value || fim.value < this.value) fim.value = this.value;
   fim.min = this.value;
+});
+
+// Marcar todos / limpar
+const todosCb = () => document.querySelectorAll('input[name="equipamentos_ids"]');
+document.getElementById('btnMarcarTodos')?.addEventListener('click', () => {
+  todosCb().forEach(cb => cb.checked = true);
+});
+document.getElementById('btnLimpar')?.addEventListener('click', () => {
+  todosCb().forEach(cb => cb.checked = false);
 });
 </script>
 {% endblock %}

@@ -3,7 +3,7 @@ import json
 import sqlite3
 import uuid
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from werkzeug.utils import secure_filename
 
 try:
@@ -23,7 +23,19 @@ CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "heic"}
 
-ADMIN_KEY = os.environ.get("ADMIN_KEY", "equipav2024")
+CATEGORIAS = [
+    "Câmera",
+    "Lente",
+    "Tripé / Suporte",
+    "Iluminação",
+    "Microfone / Áudio",
+    "Bateria",
+    "Cartão de memória",
+    "Drone",
+    "Monitor / Vídeo",
+    "Acessório",
+    "Outros",
+]
 
 
 # ── Config (R2) ────────────────────────────────────────────────────────────────
@@ -124,10 +136,31 @@ def init_db():
                 devolvido_em TEXT
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS catalogo (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                categoria TEXT NOT NULL,
+                nome      TEXT NOT NULL,
+                descricao TEXT,
+                criado_em TEXT DEFAULT (datetime('now','localtime'))
+            )
+        """)
         conn.commit()
 
 
 init_db()
+
+
+def listar_catalogo():
+    """Retorna {categoria: [itens...]} ordenado."""
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM catalogo ORDER BY categoria, nome COLLATE NOCASE"
+        ).fetchall()
+    grupos = {}
+    for r in rows:
+        grupos.setdefault(r["categoria"], []).append(dict(r))
+    return grupos
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -178,6 +211,7 @@ def index():
 
 @app.route("/novo", methods=["GET", "POST"])
 def novo():
+    catalogo = listar_catalogo()
     if request.method == "POST":
         pauta        = request.form.get("pauta", "").strip()
         data_inicio  = request.form.get("data_inicio", "")
@@ -185,12 +219,29 @@ def novo():
         cinegrafista = request.form.get("cinegrafista", "").strip()
         reporter     = request.form.get("reporter", "").strip()
         destino      = request.form.get("destino", "").strip()
-        equipamentos = request.form.get("equipamentos", "").strip()
         observacoes  = request.form.get("observacoes", "").strip()
+
+        # Equipamentos: combina selecionados do catálogo + texto livre "outros"
+        selecionados = request.form.getlist("equipamentos_ids")
+        outros       = request.form.get("equipamentos_outros", "").strip()
+
+        itens = []
+        if selecionados:
+            with get_db() as conn:
+                qmarks = ",".join("?" * len(selecionados))
+                rows = conn.execute(
+                    f"SELECT categoria, nome FROM catalogo WHERE id IN ({qmarks})",
+                    selecionados,
+                ).fetchall()
+                itens = [f"[{r['categoria']}] {r['nome']}" for r in rows]
+        if outros:
+            itens.extend([l.strip() for l in outros.splitlines() if l.strip()])
+        equipamentos = "\n".join(itens)
 
         if not pauta or not data_inicio or not data_fim or not cinegrafista:
             flash("Preencha os campos obrigatórios: Pauta, Período e Cinegrafista.", "erro")
-            return render_template("novo.html", form=request.form)
+            return render_template("novo.html", form=request.form, catalogo=catalogo,
+                                   selecionados=set(selecionados))
 
         foto_url = None
         file = request.files.get("foto_saida")
@@ -214,7 +265,7 @@ def novo():
         flash("Saída registrada com sucesso!", "ok")
         return redirect(url_for("detalhe", id=registro_id))
 
-    return render_template("novo.html", form={})
+    return render_template("novo.html", form={}, catalogo=catalogo, selecionados=set())
 
 
 @app.route("/registro/<int:id>")
@@ -295,35 +346,24 @@ def excluir(id):
     return redirect(url_for("index"))
 
 
-# ── Admin / Configuração R2 ────────────────────────────────────────────────────
+# ── Admin (acesso direto via /admin) ───────────────────────────────────────────
 
-def admin_ok():
-    return session.get("admin") is True
-
-
-@app.route("/admin", methods=["GET", "POST"])
+@app.route("/admin")
 def admin():
-    if request.method == "POST" and not admin_ok():
-        if request.form.get("chave") == ADMIN_KEY:
-            session["admin"] = True
-            return redirect(url_for("admin"))
-        flash("Chave incorreta.", "erro")
-        return render_template("admin_login.html")
-
-    if not admin_ok():
-        return render_template("admin_login.html")
-
     cfg = get_r2_config()
-    client, bucket, _, _ = get_r2()
+    client, *_ = get_r2()
     status = "configurado" if client else "não configurado"
-    return render_template("admin.html", cfg=cfg, status=status,
-                           env_override=bool(os.environ.get("R2_ACCOUNT_ID")))
+    catalogo = listar_catalogo()
+    return render_template("admin.html",
+                           cfg=cfg,
+                           status=status,
+                           env_override=bool(os.environ.get("R2_ACCOUNT_ID")),
+                           categorias=CATEGORIAS,
+                           catalogo=catalogo)
 
 
 @app.route("/admin/salvar", methods=["POST"])
 def admin_salvar():
-    if not admin_ok():
-        return redirect(url_for("admin"))
     cfg = carregar_config()
     cfg["r2_account_id"] = request.form.get("account_id", "").strip()
     cfg["r2_access_key"] = request.form.get("access_key", "").strip()
@@ -338,37 +378,50 @@ def admin_salvar():
 
 @app.route("/admin/testar", methods=["POST"])
 def admin_testar():
-    if not admin_ok():
-        return jsonify({"ok": False, "erro": "Não autenticado"}), 401
     client, bucket, public_url, pasta = get_r2()
     if not client:
         return jsonify({"ok": False, "erro": "Configuração incompleta ou boto3 ausente."}), 400
     try:
-        # 1. Confirma acesso ao bucket
         client.head_bucket(Bucket=bucket)
-
-        # 2. Faz upload de um arquivo de teste
         test_key = f"{pasta.strip('/')}/_teste_{uuid.uuid4().hex[:8]}.txt"
         client.put_object(Bucket=bucket, Key=test_key,
                           Body=b"teste de conexao equipav",
                           ContentType="text/plain")
-        # 3. Apaga o arquivo de teste
         client.delete_object(Bucket=bucket, Key=test_key)
-
-        return jsonify({
-            "ok": True,
-            "bucket": bucket,
-            "public_url": public_url,
-            "pasta": pasta,
-        })
+        return jsonify({"ok": True, "bucket": bucket, "public_url": public_url, "pasta": pasta})
     except Exception as e:
         return jsonify({"ok": False, "erro": str(e)}), 500
 
 
-@app.route("/admin/logout", methods=["POST"])
-def admin_logout():
-    session.pop("admin", None)
-    return redirect(url_for("index"))
+# ── Catálogo de equipamentos ───────────────────────────────────────────────────
+
+@app.route("/admin/catalogo/novo", methods=["POST"])
+def catalogo_novo():
+    categoria = request.form.get("categoria", "").strip()
+    nome      = request.form.get("nome", "").strip()
+    descricao = request.form.get("descricao", "").strip()
+
+    if not categoria or not nome:
+        flash("Informe categoria e nome do equipamento.", "erro")
+        return redirect(url_for("admin") + "#catalogo")
+
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO catalogo (categoria, nome, descricao) VALUES (?,?,?)",
+            (categoria, nome, descricao),
+        )
+        conn.commit()
+    flash(f"Equipamento '{nome}' adicionado ao catálogo.", "ok")
+    return redirect(url_for("admin") + "#catalogo")
+
+
+@app.route("/admin/catalogo/<int:id>/excluir", methods=["POST"])
+def catalogo_excluir(id):
+    with get_db() as conn:
+        conn.execute("DELETE FROM catalogo WHERE id=?", (id,))
+        conn.commit()
+    flash("Equipamento removido do catálogo.", "ok")
+    return redirect(url_for("admin") + "#catalogo")
 
 
 if __name__ == "__main__":
