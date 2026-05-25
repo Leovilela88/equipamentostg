@@ -8,7 +8,11 @@
     <i class="bi bi-arrow-left"></i>
   </a>
   <h5 class="mb-0 fw-bold flex-fill">{{ r.pauta }}</h5>
-  {% if r.status == 'Em campo' %}
+  {% if r.status == 'Reservado' %}
+    <span class="badge badge-reservado fs-6 px-3 py-2">
+      <i class="bi bi-bookmark me-1"></i>Reserva
+    </span>
+  {% elif r.status == 'Em campo' %}
     <span class="badge badge-campo fs-6 px-3 py-2">
       <i class="bi bi-broadcast me-1"></i>Em campo
     </span>
@@ -96,7 +100,12 @@
       </div>
       <div class="card-body d-flex flex-wrap gap-2">
 
-        {% if r.status == 'Em campo' %}
+        {% if r.status == 'Reservado' %}
+        <!-- Confirmar saída (abre modal com foto) -->
+        <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#modalConfirmarSaida">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Confirmar saída
+        </button>
+        {% elif r.status == 'Em campo' %}
         <!-- Botão devolver (abre modal) -->
         <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalDevolver">
           <i class="bi bi-check2-circle me-1"></i>Marcar como devolvido
@@ -178,6 +187,39 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Modal Confirmar Saída (reserva → em campo) -->
+<div class="modal fade" id="modalConfirmarSaida" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('confirmar_saida', id=r.id) }}" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-box-arrow-up-right me-2"></i>Confirmar saída</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-3">
+            A reserva <strong>{{ r.pauta }}</strong> será movida para <strong>"Em campo"</strong>.
+            Confira os equipamentos da lista antes de confirmar.
+          </p>
+
+          <label class="form-label fw-semibold">Foto de saída <span class="text-muted fw-normal small">(opcional)</span></label>
+          <input type="file" name="foto_saida" class="form-control mb-2"
+                 accept="image/*" capture="environment"
+                 onchange="previewFoto(this,'pvConfSaida')">
+          <div id="pvConfSaida"></div>
+          <div class="form-text">Tire uma foto dos equipamentos antes de sair</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-info">
+            <i class="bi bi-check2 me-1"></i>Confirmar saída
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 

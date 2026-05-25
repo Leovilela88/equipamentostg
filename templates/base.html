@@ -218,6 +218,22 @@
       color: #fbbf24;
     }
 
+    .btn-info, .btn-outline-info {
+      color: #38bdf8;
+      background: transparent;
+      border-color: rgba(56,189,248,.4);
+      font-weight: 600;
+    }
+    .btn-info {
+      background: rgba(56,189,248,.18);
+      border-color: rgba(56,189,248,.6);
+    }
+    .btn-outline-info:hover, .btn-info:hover {
+      background: rgba(56,189,248,.25);
+      color: #7dd3fc;
+      border-color: #38bdf8;
+    }
+
     .btn-outline-danger {
       color: #f87171;
       border-color: rgba(248,113,113,.4);
@@ -229,6 +245,12 @@
 
     /* ── Badges ────────────────────────────────────────────── */
 
+    .badge-reservado {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      font-weight: 600;
+    }
     .badge-campo {
       background: rgba(251, 191, 36, 0.15);
       color: #fbbf24;
@@ -256,6 +278,7 @@
     .stat-card .lbl { font-size: .75rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--txt-suave); margin-top: 6px; }
     .stat-card.verde .num { color: var(--verde-claro); }
     .stat-card.amarelo .num { color: #fbbf24; }
+    .stat-card.azul .num { color: #38bdf8; }
 
     /* ── Foto ──────────────────────────────────────────────── */
 
@@ -396,6 +419,9 @@
       <h1>Equipamentos Terra da Gente</h1>
       <div class="sub">Entradas e saídas</div>
     </div>
+    <a href="{{ url_for('novo') }}?tipo=reserva" class="btn-topo" title="Pré-lista de viagem">
+      <i class="bi bi-bookmark-plus"></i><span class="d-none d-md-inline ms-1">Reserva</span>
+    </a>
     <a href="{{ url_for('novo') }}" class="btn-topo primario">
       <i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline">Nova saída</span>
     </a>

@@ -185,7 +185,11 @@ app.jinja_env.globals["formatar_periodo"] = formatar_periodo
 def index():
     status_filter = request.args.get("status", "todos")
     with get_db() as conn:
-        if status_filter == "em_campo":
+        if status_filter == "reservado":
+            rows = conn.execute(
+                "SELECT * FROM registros WHERE status='Reservado' ORDER BY data_inicio ASC, criado_em DESC"
+            ).fetchall()
+        elif status_filter == "em_campo":
             rows = conn.execute(
                 "SELECT * FROM registros WHERE status='Em campo' ORDER BY criado_em DESC"
             ).fetchall()
@@ -195,13 +199,16 @@ def index():
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM registros ORDER BY criado_em DESC"
+                "SELECT * FROM registros ORDER BY "
+                "CASE status WHEN 'Reservado' THEN 1 WHEN 'Em campo' THEN 2 ELSE 3 END, "
+                "criado_em DESC"
             ).fetchall()
 
         totais = conn.execute("""
             SELECT
                 COUNT(*) as total,
-                SUM(CASE WHEN status='Em campo' THEN 1 ELSE 0 END) as em_campo,
+                SUM(CASE WHEN status='Reservado' THEN 1 ELSE 0 END) as reservado,
+                SUM(CASE WHEN status='Em campo'  THEN 1 ELSE 0 END) as em_campo,
                 SUM(CASE WHEN status='Devolvido' THEN 1 ELSE 0 END) as devolvido
             FROM registros
         """).fetchone()
@@ -243,26 +250,32 @@ def novo():
             return render_template("novo.html", form=request.form, catalogo=catalogo,
                                    selecionados=set(selecionados))
 
+        # tipo = "reserva" ou "saida" (default)
+        tipo = request.form.get("tipo", "saida")
+        status = "Reservado" if tipo == "reserva" else "Em campo"
+
         foto_url = None
-        file = request.files.get("foto_saida")
-        if file and file.filename and allowed(file.filename):
-            try:
-                foto_url = upload_foto(file, prefix="saida")
-            except Exception as e:
-                flash(f"Erro ao enviar foto: {e}", "erro")
+        if tipo == "saida":
+            file = request.files.get("foto_saida")
+            if file and file.filename and allowed(file.filename):
+                try:
+                    foto_url = upload_foto(file, prefix="saida")
+                except Exception as e:
+                    flash(f"Erro ao enviar foto: {e}", "erro")
 
         with get_db() as conn:
             cursor = conn.execute("""
                 INSERT INTO registros
                     (pauta, data_inicio, data_fim, cinegrafista, reporter, destino,
-                     equipamentos, observacoes, foto_saida)
-                VALUES (?,?,?,?,?,?,?,?,?)
+                     equipamentos, observacoes, foto_saida, status)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
             """, (pauta, data_inicio, data_fim, cinegrafista, reporter, destino,
-                  equipamentos, observacoes, foto_url))
+                  equipamentos, observacoes, foto_url, status))
             conn.commit()
             registro_id = cursor.lastrowid
 
-        flash("Saída registrada com sucesso!", "ok")
+        msg = "Reserva criada com sucesso!" if tipo == "reserva" else "Saída registrada com sucesso!"
+        flash(msg, "ok")
         return redirect(url_for("detalhe", id=registro_id))
 
     return render_template("novo.html", form={}, catalogo=catalogo, selecionados=set())
@@ -323,6 +336,36 @@ def devolver(id):
         conn.commit()
 
     flash("Equipamentos marcados como devolvidos!", "ok")
+    return redirect(url_for("detalhe", id=id))
+
+
+@app.route("/registro/<int:id>/confirmar-saida", methods=["POST"])
+def confirmar_saida(id):
+    """Converte uma Reserva em 'Em campo' (opcionalmente com foto)."""
+    foto_url = None
+    file = request.files.get("foto_saida")
+    if file and file.filename and allowed(file.filename):
+        try:
+            foto_url = upload_foto(file, prefix="saida")
+        except Exception as e:
+            flash(f"Erro ao enviar foto: {e}", "erro")
+            return redirect(url_for("detalhe", id=id))
+
+    with get_db() as conn:
+        if foto_url:
+            conn.execute(
+                "UPDATE registros SET status='Em campo', foto_saida=?, "
+                "criado_em=datetime('now','localtime') WHERE id=?",
+                (foto_url, id),
+            )
+        else:
+            conn.execute(
+                "UPDATE registros SET status='Em campo', "
+                "criado_em=datetime('now','localtime') WHERE id=?",
+                (id,),
+            )
+        conn.commit()
+    flash("Saída confirmada! Reserva agora está em campo.", "ok")
     return redirect(url_for("detalhe", id=id))
 
 
